@@ -20,15 +20,15 @@
 - [x] első commit
 - [x] GitHub link elküldése a tanárnak
 
-## 2026-05-04 — mai terv
+## Dorci - 2026-05-04
 
 - [x] README rendbetétele
-- [ ] `src/__init__.py` hozzáadása
-- [ ] PINN bemenetek skálázásának átgondolása
-- [ ] szintetikus pontmintavételezés megírása
-- [ ] PINN loss komponenseinek előkészítése
-- [ ] egyszeri loss-számítás kipróbálása egy még nem tanított modellen
-- [ ] második commit és push
+- [x] `src/__init__.py` hozzáadása
+- [x] PINN bemenetek skálázása
+- [x] szintetikus pontmintavételezés megírása
+- [x] PINN loss komponenseinek előkészítése
+- [x] egyszeri loss-számítás kipróbálása egy még nem tanított modellen
+- [x] második commit és push
 
 ## TODO
 
