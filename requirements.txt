@@ -4,3 +4,5 @@ matplotlib
 torch
 tqdm
 jupyter
+pandas
+yfinance

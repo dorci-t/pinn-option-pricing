@@ -144,6 +144,12 @@ Ez elmenti az összehasonlító és hibaábrákat:
     figures/pinn_vs_analytic_slices.png
     figures/pinn_error_surface.png
 
+Valós opciós adatok letöltésének és első összehasonlításának kipróbálása:
+
+    python real_data_demo.py
+
+Ez egy Yahoo Finance / yfinance alapú demó, amely egy kiválasztott részvény call opciós láncát tölti le, bid/ask alapján mid price értéket számol, majd összehasonlítja ezeket az analitikus Black-Scholes árakkal.
+
 ## Forrás
 
 A projekt alapötlete a következő cikkből származik:
