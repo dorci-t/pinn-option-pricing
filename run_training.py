@@ -5,28 +5,11 @@ Train a PINN model on the Black-Scholes benchmark.
 import argparse
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import torch
 
-from src.pinn_model import PINN, GatedPINN
+from src.pinn_model import MODELS
+from src.plotting import plot_lines
 from src.train import train_model
-
-MODELS = {
-    "pinn": PINN,
-    "gated": GatedPINN,
-}
-
-
-def plot_loss_curve(loss_history, title, output_path):
-    plt.figure(figsize=(8, 5))
-    plt.plot(loss_history)
-    plt.xlabel("Epoch")
-    plt.ylabel("Total loss")
-    plt.title(title)
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=200)
-    plt.close()
 
 
 def main():
@@ -71,7 +54,14 @@ def main():
     loss_plot = output_dir / f"{prefix}_training_loss.png"
     model_file = f"{prefix}_model.pt"
 
-    plot_loss_curve(loss_history, f"{model_cls.__name__} training loss", loss_plot)
+    plot_lines(
+        range(len(loss_history)),
+        {"loss": loss_history},
+        f"{model_cls.__name__} training loss",
+        "Epoch",
+        "Total loss",
+        loss_plot,
+    )
     torch.save(model.state_dict(), model_file)
 
     print("Training finished.")

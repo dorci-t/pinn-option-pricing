@@ -8,28 +8,29 @@ their final MSE/MAE against the analytic Black-Scholes benchmark.
 from pathlib import Path
 import csv
 
-import matplotlib.pyplot as plt
 import torch
-from tqdm import trange
 
 from src.pinn_model import PINN
+from src.plotting import plot_lines
 from src.train import evaluate_vs_analytic, train_model
 
+DEFAULTS = {
+    "hidden_dim": 32,
+    "hidden_layers": 2,
+    "lr": 1e-3,
+    "beta": 1.0,
+    "epochs": 500,
+    "n_interior": 300,
+    "n_terminal": 100,
+    "n_boundary": 100,
+}
 
-def plot_experiment_losses(histories, output_path):
-    plt.figure(figsize=(8, 5))
-
-    for name, loss_history in histories.items():
-        plt.plot(loss_history, label=name)
-
-    plt.xlabel("Epoch")
-    plt.ylabel("Total loss")
-    plt.title("PINN hyperparameter experiment losses")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=200)
-    plt.close()
+EXPERIMENTS = [
+    {"name": "baseline"},
+    {"name": "larger_hidden_dim", "hidden_dim": 64},
+    {"name": "lower_lr", "lr": 5e-4},
+    {"name": "higher_pde_weight", "beta": 10.0},
+]
 
 
 def main():
@@ -39,57 +40,11 @@ def main():
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
 
-    configs = [
-        {
-            "name": "baseline",
-            "hidden_dim": 32,
-            "hidden_layers": 2,
-            "lr": 1e-3,
-            "beta": 1.0,
-            "epochs": 500,
-            "n_interior": 300,
-            "n_terminal": 100,
-            "n_boundary": 100,
-        },
-        {
-            "name": "larger_hidden_dim",
-            "hidden_dim": 64,
-            "hidden_layers": 2,
-            "lr": 1e-3,
-            "beta": 1.0,
-            "epochs": 500,
-            "n_interior": 300,
-            "n_terminal": 100,
-            "n_boundary": 100,
-        },
-        {
-            "name": "lower_lr",
-            "hidden_dim": 32,
-            "hidden_layers": 2,
-            "lr": 5e-4,
-            "beta": 1.0,
-            "epochs": 500,
-            "n_interior": 300,
-            "n_terminal": 100,
-            "n_boundary": 100,
-        },
-        {
-            "name": "higher_pde_weight",
-            "hidden_dim": 32,
-            "hidden_layers": 2,
-            "lr": 1e-3,
-            "beta": 10.0,
-            "epochs": 500,
-            "n_interior": 300,
-            "n_terminal": 100,
-            "n_boundary": 100,
-        },
-    ]
-
     rows = []
     histories = {}
 
-    for config in configs:
+    for experiment in EXPERIMENTS:
+        config = {**DEFAULTS, **experiment}
         print(f"Running experiment: {config['name']}")
 
         torch.manual_seed(0)
@@ -141,8 +96,12 @@ def main():
         writer.writeheader()
         writer.writerows(rows)
 
-    plot_experiment_losses(
+    plot_lines(
+        range(max(len(h) for h in histories.values())),
         histories,
+        "PINN hyperparameter experiment losses",
+        "Epoch",
+        "Total loss",
         output_dir / "hyperparameter_loss_curves.png",
     )
 

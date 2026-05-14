@@ -148,3 +148,9 @@ class ParametricPINN(nn.Module):
 
         x = torch.cat([t_scaled, S_scaled, K_scaled], dim=1)
         return self.net(x)
+
+
+MODELS = {
+    "pinn": PINN,
+    "gated": GatedPINN,
+}

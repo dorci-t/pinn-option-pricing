@@ -6,56 +6,13 @@ or generate standalone analytic benchmark plots with --analytic-only.
 import argparse
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
 from src.black_scholes import european_call_price
-from src.pinn_model import PINN, GatedPINN
+from src.pinn_model import MODELS
+from src.plotting import plot_comparison_slices, plot_lines, plot_surface
 from src.train import evaluate_vs_analytic
-
-MODELS = {
-    "pinn": PINN,
-    "gated": GatedPINN,
-}
-
-
-def plot_error_surface(SS, TT, error, title, output_path):
-    fig = plt.figure(figsize=(9, 6))
-    ax = fig.add_subplot(111, projection="3d")
-
-    ax.plot_surface(SS, TT, error, linewidth=0, antialiased=True)
-
-    ax.set_xlabel("Stock price S")
-    ax.set_ylabel("Time t")
-    ax.set_zlabel("Prediction error")
-    ax.set_title(title)
-
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=200)
-    plt.close()
-
-
-def plot_price_slices(S_values, true_slices, pred_slices, model_name, output_path):
-    plt.figure(figsize=(8, 5))
-
-    for label in true_slices:
-        plt.plot(S_values, true_slices[label], label=f"{label} analytic")
-        plt.plot(
-            S_values,
-            pred_slices[label],
-            linestyle="--",
-            label=f"{label} {model_name}",
-        )
-
-    plt.xlabel("Stock price S")
-    plt.ylabel("Option price V(t, S)")
-    plt.title(f"Analytic Black-Scholes vs {model_name} prediction")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=200)
-    plt.close()
 
 
 def plot_analytic_only(output_dir, K, r, sigma, T, S_max):
@@ -65,34 +22,24 @@ def plot_analytic_only(output_dir, K, r, sigma, T, S_max):
     for t in [0.0, 0.25, 0.5, 0.75, 1.0]:
         slice_data[f"t = {t}"] = european_call_price(S_values, t, K=K, r=r, sigma=sigma, T=T)
 
-    plt.figure(figsize=(8, 5))
-    for label, prices in slice_data.items():
-        plt.plot(S_values, prices, label=label)
-    plt.xlabel("Stock price S")
-    plt.ylabel("Option price V(t, S)")
-    plt.title("Analytic Black-Scholes European Call Price")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(output_dir / "analytic_price_slices.png", dpi=200)
-    plt.close()
+    plot_lines(
+        S_values, slice_data,
+        "Analytic Black-Scholes European Call Price",
+        "Stock price S", "Option price V(t, S)",
+        output_dir / "analytic_price_slices.png",
+    )
 
     S_grid = np.linspace(1.0, S_max, 100)
     t_grid = np.linspace(0.0, T, 100)
     SS, TT = np.meshgrid(S_grid, t_grid)
-
     VV = european_call_price(SS, TT, K=K, r=r, sigma=sigma, T=T)
 
-    fig = plt.figure(figsize=(9, 6))
-    ax = fig.add_subplot(111, projection="3d")
-    ax.plot_surface(SS, TT, VV, linewidth=0, antialiased=True)
-    ax.set_xlabel("Stock price S")
-    ax.set_ylabel("Time t")
-    ax.set_zlabel("Option price V(t, S)")
-    ax.set_title("Analytic Black-Scholes European Call Price")
-    plt.tight_layout()
-    plt.savefig(output_dir / "analytic_price_surface.png", dpi=200)
-    plt.close()
+    plot_surface(
+        SS, TT, VV,
+        "Analytic Black-Scholes European Call Price",
+        "Option price V(t, S)",
+        output_dir / "analytic_price_surface.png",
+    )
 
     print("Generated figures:")
     print("- figures/analytic_price_slices.png")
@@ -150,9 +97,10 @@ def main():
     error_plot = output_dir / f"{prefix}_error_surface.png"
     slices_plot = output_dir / f"{prefix}_vs_analytic_slices.png"
 
-    plot_error_surface(
+    plot_surface(
         SS, TT, V_pred - V_true,
         f"{model_name} prediction error",
+        "Prediction error",
         error_plot,
     )
 
@@ -172,7 +120,7 @@ def main():
         with torch.no_grad():
             pred_slices[f"t = {t}"] = model(t_slice, S_slice).numpy().reshape(-1)
 
-    plot_price_slices(
+    plot_comparison_slices(
         S_grid, true_slices, pred_slices, model_name, slices_plot,
     )
 
