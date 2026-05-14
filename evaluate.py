@@ -5,10 +5,21 @@
 
 # %%
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
 import torch
+
+# When run as a notebook from notebooks/, the working directory and sys.path
+# point at notebooks/, not the project root. We detect this by checking whether
+# __file__ exists (it does in scripts, not in notebooks) and adjust accordingly.
+# The src/ check makes os.chdir idempotent - it only moves if we're not already
+# at the project root.
+_project_root = str(Path(__file__).resolve().parent) if "__file__" in dir() else ".."
+sys.path.insert(0, _project_root)
+if not Path("src").is_dir():
+    os.chdir(_project_root)
 
 from src.black_scholes import european_call_price
 from src.config import load_config
