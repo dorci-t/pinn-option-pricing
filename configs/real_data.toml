@@ -1,2 +1,5 @@
 ticker = "AAPL"
 risk_free_rate = 0.05
+expiration = "2026-06-18"
+spot_history_start = "2025-06-01"
+spot_history_end = "2026-05-15"

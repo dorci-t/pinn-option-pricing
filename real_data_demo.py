@@ -3,6 +3,8 @@
 #
 # Downloads one call option chain with yfinance, computes market mid prices
 # from bid/ask quotes, and compares them with analytic Black-Scholes prices.
+#
+# Data is cached to `data/` — delete the cached CSV to re-download.
 
 # %%
 import os
@@ -72,7 +74,7 @@ def plot_market_vs_black_scholes(calls, output_path):
 
 
 # %% [markdown]
-# ## Download option chain
+# ## Load option chain (download + cache, or read from cache)
 
 # %%
 data_dir = Path("data")
@@ -83,34 +85,49 @@ figures_dir.mkdir(exist_ok=True)
 
 ticker_symbol = config["ticker"]
 risk_free_rate = config["risk_free_rate"]
+expiration = config["expiration"]
 
-ticker = yf.Ticker(ticker_symbol)
+cache_path = data_dir / f"{ticker_symbol}_calls_{expiration}.csv"
 
-expirations = ticker.options
-if not expirations:
-    raise RuntimeError(f"No option expirations found for {ticker_symbol}.")
+if cache_path.exists():
+    print(f"Using cached data from {cache_path}")
+    calls = pd.read_csv(cache_path)
+    spot_price = float(calls["spot_price"].iloc[0])
+    sigma = float(calls["sigma_estimate"].iloc[0])
+    days_to_expiry = int(calls["days_to_expiry"].iloc[0])
+else:
+    print(f"Downloading option chain for {ticker_symbol}, expiration {expiration}")
+    ticker = yf.Ticker(ticker_symbol)
 
-expiration = expirations[0]
-option_chain = ticker.option_chain(expiration)
+    option_chain = ticker.option_chain(expiration)
+    calls = option_chain.calls.copy()
 
-calls = option_chain.calls.copy()
+    calls = calls[(calls["bid"] > 0) & (calls["ask"] > 0)].copy()
+    calls["mid_price"] = (calls["bid"] + calls["ask"]) / 2
 
-calls = calls[(calls["bid"] > 0) & (calls["ask"] > 0)].copy()
-calls["mid_price"] = (calls["bid"] + calls["ask"]) / 2
+    spot_history = ticker.history(
+        start=config["spot_history_start"],
+        end=config["spot_history_end"],
+    )
+    if spot_history.empty:
+        raise RuntimeError(f"No historical price data found for {ticker_symbol}.")
 
-spot_history = ticker.history(period="1y")
-if spot_history.empty:
-    raise RuntimeError(f"No historical price data found for {ticker_symbol}.")
+    spot_price = float(spot_history["Close"].iloc[-1])
+    sigma = float(annualised_volatility(spot_history["Close"]))
 
-spot_price = float(spot_history["Close"].iloc[-1])
-sigma = float(annualised_volatility(spot_history["Close"]))
+    today = pd.Timestamp(config["spot_history_end"])
+    expiry_date = pd.Timestamp(expiration)
+    days_to_expiry = (expiry_date - today).days
 
-today = pd.Timestamp.today(tz=None).normalize()
-expiry_date = pd.Timestamp(expiration)
-days_to_expiry = (expiry_date - today).days
+    calls["ticker"] = ticker_symbol
+    calls["spot_price"] = spot_price
+    calls["expiration"] = expiration
+    calls["days_to_expiry"] = days_to_expiry
+    calls["sigma_estimate"] = sigma
+    calls["risk_free_rate"] = risk_free_rate
 
-if days_to_expiry <= 0:
-    raise RuntimeError("Selected option expiration is not in the future.")
+    calls.to_csv(cache_path, index=False)
+    print(f"Cached data to {cache_path}")
 
 T = days_to_expiry / 365
 
@@ -133,24 +150,13 @@ calls["bs_price"] = european_call_price(
     T=T,
 )
 
-calls["ticker"] = ticker_symbol
-calls["spot_price"] = spot_price
-calls["expiration"] = expiration
-calls["days_to_expiry"] = days_to_expiry
-calls["sigma_estimate"] = sigma
-calls["risk_free_rate"] = risk_free_rate
-
 lower = 0.7 * spot_price
 upper = 1.3 * spot_price
 plot_calls = calls[(calls["strike"] >= lower) & (calls["strike"] <= upper)].copy()
-
-output_csv = data_dir / f"{ticker_symbol}_calls_{expiration}.csv"
-calls.to_csv(output_csv, index=False)
 
 plot_market_vs_black_scholes(
     plot_calls,
     figures_dir / "market_vs_black_scholes.png",
 )
 
-print(f"Saved data to: {output_csv}")
 print("Saved figure to: figures/market_vs_black_scholes.png")
