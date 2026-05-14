@@ -25,8 +25,12 @@ echo "=== Evaluate GatedPINN ==="
 python evaluate.py --model gated
 
 echo ""
-echo "=== Hyperparameter experiments ==="
-python run_experiments.py
+echo "=== Hyperparameter experiments (PINN) ==="
+python run_experiments.py --model pinn
+
+echo ""
+echo "=== Hyperparameter experiments (GatedPINN) ==="
+python run_experiments.py --model gated
 
 echo ""
 echo "=== Real data demo ==="
