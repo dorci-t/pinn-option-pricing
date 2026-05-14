@@ -1,19 +1,22 @@
 """
 Black-Scholes PDE residual used in the PINN loss.
 
-For the main benchmark, the neural network approximates the option price
-function V(t, S). This module computes how much the network output violates
-the Black-Scholes PDE at sampled interior points.
+The neural network approximates the option price function V(t, S, ...).
+This module computes how much the network output violates the Black-Scholes
+PDE at sampled interior points.
 """
 
 import torch
 
 
-def black_scholes_residual(model, t, S, r=0.05, sigma=0.2):
+def black_scholes_residual(model, t, S, *extra_inputs, r=0.05, sigma=0.2):
     """
-    Compute the Black-Scholes PDE residual for the model output V(t, S).
+    Compute the Black-Scholes PDE residual.
+
+    Works for both the fixed-strike model V(t, S) and the parametric model
+    V(t, S, K) — pass K (or any other extra inputs) as positional args.
     """
-    V = model(t, S)
+    V = model(t, S, *extra_inputs)
 
     V_t = torch.autograd.grad(
         V,

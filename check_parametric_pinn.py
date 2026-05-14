@@ -7,7 +7,7 @@ loss calculation work together before adding market data loss.
 
 import torch
 
-from src.parametric_losses import compute_parametric_pinn_loss
+from src.losses import compute_pinn_loss
 from src.pinn_model import ParametricPINN
 
 
@@ -22,8 +22,10 @@ def main():
         K_scale=160.0,
     )
 
-    loss, components = compute_parametric_pinn_loss(
+    loss, components = compute_pinn_loss(
         model,
+        K_min=20.0,
+        K_max=120.0,
         n_interior=200,
         n_terminal=100,
         n_boundary=100,

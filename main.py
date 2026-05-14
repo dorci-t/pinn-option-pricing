@@ -5,10 +5,10 @@ the PINN result will be compared against this benchmark.
 
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from src.black_scholes import european_call_price
-from src.plotting import plot_price_slices, plot_surface
 
 
 def main():
@@ -32,29 +32,35 @@ def main():
         prices = european_call_price(S_values, t, K=K, r=r, sigma=sigma, T=T)
         slice_data[f"t = {t}"] = prices
 
-    plot_price_slices(
-        S_values,
-        slice_data,
-        output_dir / "analytic_price_slices.png",
-    )
+    plt.figure(figsize=(8, 5))
+    for label, prices in slice_data.items():
+        plt.plot(S_values, prices, label=label)
+    plt.xlabel("Stock price S")
+    plt.ylabel("Option price V(t, S)")
+    plt.title("Analytic Black-Scholes European Call Price")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(output_dir / "analytic_price_slices.png", dpi=200)
+    plt.close()
 
     # Now compute the same formula on a full (t, S) grid for a surface plot.
-    # TODO: rotate the surface plot to show the time axis better. The current view is
-    # not ideal because the time axis is almost vertical and hard to read. Probably not
-    # worth spending too much time on this.
     S_grid = np.linspace(1.0, S_max, 100)
     t_grid = np.linspace(0.0, T, 100)
     SS, TT = np.meshgrid(S_grid, t_grid)
 
     VV = european_call_price(SS, TT, K=K, r=r, sigma=sigma, T=T)
 
-    plot_surface(
-        SS,
-        TT,
-        VV,
-        output_dir / "analytic_price_surface.png",
-        "Analytic Black-Scholes European Call Price",
-    )
+    fig = plt.figure(figsize=(9, 6))
+    ax = fig.add_subplot(111, projection="3d")
+    ax.plot_surface(SS, TT, VV, linewidth=0, antialiased=True)
+    ax.set_xlabel("Stock price S")
+    ax.set_ylabel("Time t")
+    ax.set_zlabel("Option price V(t, S)")
+    ax.set_title("Analytic Black-Scholes European Call Price")
+    plt.tight_layout()
+    plt.savefig(output_dir / "analytic_price_surface.png", dpi=200)
+    plt.close()
 
     print("Done.")
     print("Generated figures:")

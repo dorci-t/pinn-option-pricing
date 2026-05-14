@@ -1,8 +1,5 @@
 """
-Initial PINN model skeleton.
-
-This file is not complete yet. The next project step is to implement the PDE residual
-and the training loop.
+PINN model architectures for Black-Scholes option pricing.
 """
 
 import torch
@@ -50,15 +47,11 @@ class ResidualBlocks(nn.Module):
     def __init__(self, hidden_dim, n_layers, act_class):
         super().__init__()
 
-        self.hidden_dim = hidden_dim
-        self.n_layers = n_layers
-        self.act_class = act_class
-
         self.layers = nn.ModuleList([nn.Linear(hidden_dim, hidden_dim) for _ in range(n_layers)])
         self.acts = nn.ModuleList([act_class() for _ in range(n_layers)])
     
     def forward(self, x):
-        for i in range(self.n_layers):
+        for i in range(len(self.layers)):
             x = self.layers[i](x)
             x = self.acts[i](x) + x
 
@@ -66,7 +59,10 @@ class ResidualBlocks(nn.Module):
 
 class GatedPINN(nn.Module):
     """
-    Simple fully connected neural network.
+    Dual-path gated network (Figure 3 in the paper).
+
+    A simple linear path captures the ramp-shaped payoff, while a deeper
+    residual path with a learned gate captures nonlinearities.
 
     Input:
         t, S

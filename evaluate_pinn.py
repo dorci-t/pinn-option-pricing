@@ -21,13 +21,6 @@ MODELS = {
 }
 
 
-def mean_squared_error(y_pred, y_true):
-    return np.mean((y_pred - y_true) ** 2)
-
-
-def mean_absolute_error(y_pred, y_true):
-    return np.mean(np.abs(y_pred - y_true))
-
 
 def plot_error_surface(SS, TT, error, title, output_path):
     fig = plt.figure(figsize=(9, 6))
@@ -113,8 +106,8 @@ def main():
 
     error = V_pred - V_true
 
-    mse = mean_squared_error(V_pred, V_true)
-    mae = mean_absolute_error(V_pred, V_true)
+    mse = np.mean((V_pred - V_true) ** 2)
+    mae = np.mean(np.abs(V_pred - V_true))
 
     print(f"{model_name} vs analytic Black-Scholes benchmark:")
     print(f"MSE: {mse:.6f}")
