@@ -6,35 +6,35 @@ python -m pytest tests/ -v
 
 echo ""
 echo "=== Analytic benchmark plots ==="
-python evaluate.py --analytic-only
+CONFIG=configs/analytic.toml python evaluate.py
 
 echo ""
 echo "=== Train PINN ==="
-python run_training.py --model pinn
+CONFIG=configs/pinn.toml python run_training.py
 
 echo ""
 echo "=== Train GatedPINN ==="
-python run_training.py --model gated
+CONFIG=configs/gated.toml python run_training.py
 
 echo ""
 echo "=== Evaluate PINN ==="
-python evaluate.py --model pinn
+CONFIG=configs/pinn.toml python evaluate.py
 
 echo ""
 echo "=== Evaluate GatedPINN ==="
-python evaluate.py --model gated
+CONFIG=configs/gated.toml python evaluate.py
 
 echo ""
 echo "=== Hyperparameter experiments (PINN) ==="
-python run_experiments.py --model pinn
+CONFIG=configs/pinn.toml python run_experiments.py
 
 echo ""
 echo "=== Hyperparameter experiments (GatedPINN) ==="
-python run_experiments.py --model gated
+CONFIG=configs/gated.toml python run_experiments.py
 
 echo ""
 echo "=== Real data demo ==="
-python real_data_demo.py
+CONFIG=configs/real_data.toml python real_data_demo.py
 
 echo ""
 echo "Done."

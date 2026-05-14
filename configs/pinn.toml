@@ -1,0 +1,14 @@
+model = "pinn"
+K = 40.0
+r = 0.05
+sigma = 0.2
+T = 1.0
+S_max = 160.0
+hidden_dim = 32
+hidden_layers = 2
+lr = 0.001
+epochs = 1000
+n_interior = 500
+n_terminal = 200
+n_boundary = 200
+beta = 1.0

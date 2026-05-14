@@ -6,6 +6,7 @@ market mid price from bid/ask quotes, and compares the observed market prices
 with analytic Black-Scholes prices.
 """
 
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -14,6 +15,10 @@ import pandas as pd
 import yfinance as yf
 
 from src.black_scholes import european_call_price
+from src.config import load_config
+
+CONFIG_PATH = os.environ.get("CONFIG", "configs/real_data.toml")
+config = load_config(CONFIG_PATH)
 
 
 def annualised_volatility(close_prices):
@@ -63,8 +68,8 @@ def main():
     data_dir.mkdir(exist_ok=True)
     figures_dir.mkdir(exist_ok=True)
 
-    ticker_symbol = "AAPL"
-    risk_free_rate = 0.05
+    ticker_symbol = config["ticker"]
+    risk_free_rate = config["risk_free_rate"]
 
     ticker = yf.Ticker(ticker_symbol)
 
@@ -77,7 +82,6 @@ def main():
 
     calls = option_chain.calls.copy()
 
-    # Keep rows with usable bid/ask quotes.
     calls = calls[(calls["bid"] > 0) & (calls["ask"] > 0)].copy()
     calls["mid_price"] = (calls["bid"] + calls["ask"]) / 2
 
@@ -113,7 +117,6 @@ def main():
     calls["sigma_estimate"] = sigma
     calls["risk_free_rate"] = risk_free_rate
 
-    # Keep a reasonable strike range around the current stock price for plotting.
     lower = 0.7 * spot_price
     upper = 1.3 * spot_price
     plot_calls = calls[(calls["strike"] >= lower) & (calls["strike"] <= upper)].copy()

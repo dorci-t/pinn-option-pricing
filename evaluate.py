@@ -1,18 +1,22 @@
 """
 Evaluate a trained PINN against the analytic Black-Scholes benchmark,
-or generate standalone analytic benchmark plots with --analytic-only.
+or generate standalone analytic benchmark plots (set analytic_only = true in config).
 """
 
-import argparse
+import os
 from pathlib import Path
 
 import numpy as np
 import torch
 
 from src.black_scholes import european_call_price
+from src.config import load_config
 from src.pinn_model import MODELS
 from src.plotting import plot_comparison_slices, plot_lines, plot_surface
 from src.train import evaluate_vs_analytic
+
+CONFIG_PATH = os.environ.get("CONFIG", "configs/gated.toml")
+config = load_config(CONFIG_PATH)
 
 
 def plot_analytic_only(output_dir, K, r, sigma, T, S_max):
@@ -47,42 +51,35 @@ def plot_analytic_only(output_dir, K, r, sigma, T, S_max):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--model",
-        choices=MODELS.keys(),
-        default="gated",
-    )
-    parser.add_argument(
-        "--analytic-only",
-        action="store_true",
-    )
-    args = parser.parse_args()
-
     output_dir = Path("figures")
     output_dir.mkdir(exist_ok=True)
 
-    K = 40.0
-    r = 0.05
-    sigma = 0.2
-    T = 1.0
-    S_max = 160.0
+    K = config["K"]
+    r = config["r"]
+    sigma = config["sigma"]
+    T = config["T"]
+    S_max = config["S_max"]
 
-    if args.analytic_only:
+    if config.get("analytic_only", False):
         plot_analytic_only(output_dir, K, r, sigma, T, S_max)
         return
 
-    prefix = "gated_pinn" if args.model == "gated" else "pinn"
-    model_cls = MODELS[args.model]
+    prefix = "gated_pinn" if config["model"] == "gated" else "pinn"
+    model_cls = MODELS[config["model"]]
     model_name = model_cls.__name__
 
     model_path = Path(f"{prefix}_model.pt")
     if not model_path.exists():
         raise FileNotFoundError(
-            f"Could not find {model_path}. Run `python run_training.py --model {args.model}` first."
+            f"Could not find {model_path}. Train the model first with run_training.py."
         )
 
-    model = model_cls(hidden_dim=32, hidden_layers=2, T=T, S_max=S_max)
+    model = model_cls(
+        hidden_dim=config["hidden_dim"],
+        hidden_layers=config["hidden_layers"],
+        T=T,
+        S_max=S_max,
+    )
     model.load_state_dict(torch.load(model_path, map_location="cpu"))
     model.eval()
 
