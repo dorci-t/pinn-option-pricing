@@ -7,3 +7,4 @@ jupyter
 pandas
 yfinance
 jupytext
+pytest
