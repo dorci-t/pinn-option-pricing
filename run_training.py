@@ -1,8 +1,5 @@
 """
-Training script for the Black-Scholes PINN.
-
-Trains the selected model architecture for a small number of epochs and saves
-the loss curve.
+Train a PINN model on the Black-Scholes benchmark.
 """
 
 import argparse
@@ -10,10 +7,9 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import torch
-from tqdm import trange
 
-from src.losses import compute_pinn_loss
 from src.pinn_model import PINN, GatedPINN
+from src.train import train_model
 
 MODELS = {
     "pinn": PINN,
@@ -59,38 +55,18 @@ def main():
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
-    n_epochs = 1000
-    loss_history = []
+    loss_history = train_model(
+        model,
+        optimizer,
+        n_epochs=1000,
+        n_interior=500,
+        n_terminal=200,
+        n_boundary=200,
+        beta=1.0,
+        device=device,
+    )
 
-    for epoch in trange(n_epochs):
-        optimizer.zero_grad()
-
-        loss, components = compute_pinn_loss(
-            model,
-            n_interior=500,
-            n_terminal=200,
-            n_boundary=200,
-            beta=1.0,
-            device=device,
-        )
-
-        loss.backward()
-        optimizer.step()
-
-        loss_history.append(components["total"])
-
-        if epoch % 100 == 0:
-            print(
-                f"epoch {epoch:4d} | "
-                f"total={components['total']:.4f} | "
-                f"pde={components['pde']:.4f} | "
-                f"terminal={components['terminal']:.4f} | "
-                f"boundary={components['boundary']:.4f}"
-            )
-
-    prefix = args.model if args.model != "pinn" else "pinn"
-    if args.model == "gated":
-        prefix = "gated_pinn"
+    prefix = "gated_pinn" if args.model == "gated" else "pinn"
 
     loss_plot = output_dir / f"{prefix}_training_loss.png"
     model_file = f"{prefix}_model.pt"

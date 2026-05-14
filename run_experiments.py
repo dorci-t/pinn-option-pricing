@@ -9,70 +9,11 @@ from pathlib import Path
 import csv
 
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 from tqdm import trange
 
-from src.black_scholes import european_call_price
-from src.losses import compute_pinn_loss
 from src.pinn_model import PINN
-
-
-def train_model(config):
-    torch.manual_seed(0)
-
-    model = PINN(
-        hidden_dim=config["hidden_dim"],
-        hidden_layers=config["hidden_layers"],
-        T=1.0,
-        S_max=160.0,
-    )
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
-    loss_history = []
-
-    for _ in trange(config["epochs"], leave=False):
-        optimizer.zero_grad()
-
-        loss, components = compute_pinn_loss(
-            model,
-            n_interior=config["n_interior"],
-            n_terminal=config["n_terminal"],
-            n_boundary=config["n_boundary"],
-            beta=config["beta"],
-        )
-
-        loss.backward()
-        optimizer.step()
-
-        loss_history.append(components["total"])
-
-    return model, loss_history
-
-
-def evaluate_model(model):
-    K = 40.0
-    r = 0.05
-    sigma = 0.2
-    T = 1.0
-    S_max = 160.0
-
-    S_grid = np.linspace(1.0, S_max, 80)
-    t_grid = np.linspace(0.0, T, 80)
-    SS, TT = np.meshgrid(S_grid, t_grid)
-
-    V_true = european_call_price(SS, TT, K=K, r=r, sigma=sigma, T=T)
-
-    t_tensor = torch.tensor(TT.reshape(-1, 1), dtype=torch.float32)
-    S_tensor = torch.tensor(SS.reshape(-1, 1), dtype=torch.float32)
-
-    with torch.no_grad():
-        V_pred = model(t_tensor, S_tensor).numpy().reshape(SS.shape)
-
-    mse = np.mean((V_pred - V_true) ** 2)
-    mae = np.mean(np.abs(V_pred - V_true))
-
-    return mse, mae
+from src.train import evaluate_vs_analytic, train_model
 
 
 def plot_experiment_losses(histories, output_path):
@@ -151,8 +92,29 @@ def main():
     for config in configs:
         print(f"Running experiment: {config['name']}")
 
-        model, loss_history = train_model(config)
-        mse, mae = evaluate_model(model)
+        torch.manual_seed(0)
+
+        model = PINN(
+            hidden_dim=config["hidden_dim"],
+            hidden_layers=config["hidden_layers"],
+            T=1.0,
+            S_max=160.0,
+        )
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
+
+        loss_history = train_model(
+            model,
+            optimizer,
+            n_epochs=config["epochs"],
+            print_every=0,
+            n_interior=config["n_interior"],
+            n_terminal=config["n_terminal"],
+            n_boundary=config["n_boundary"],
+            beta=config["beta"],
+        )
+
+        mse, mae, *_ = evaluate_vs_analytic(model, grid_size=80)
 
         histories[config["name"]] = loss_history
 

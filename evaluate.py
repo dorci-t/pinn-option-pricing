@@ -1,8 +1,6 @@
 """
-Evaluate a trained PINN against the analytic Black-Scholes benchmark.
-
-Loads saved weights, predicts option prices on a regular (t, S) grid, compares
-them to the analytic Black-Scholes prices, and saves error plots.
+Evaluate a trained PINN against the analytic Black-Scholes benchmark,
+or generate standalone analytic benchmark plots with --analytic-only.
 """
 
 import argparse
@@ -14,12 +12,12 @@ import torch
 
 from src.black_scholes import european_call_price
 from src.pinn_model import PINN, GatedPINN
+from src.train import evaluate_vs_analytic
 
 MODELS = {
     "pinn": PINN,
     "gated": GatedPINN,
 }
-
 
 
 def plot_error_surface(SS, TT, error, title, output_path):
@@ -60,6 +58,47 @@ def plot_price_slices(S_values, true_slices, pred_slices, model_name, output_pat
     plt.close()
 
 
+def plot_analytic_only(output_dir, K, r, sigma, T, S_max):
+    S_values = np.linspace(1.0, S_max, 300)
+
+    slice_data = {}
+    for t in [0.0, 0.25, 0.5, 0.75, 1.0]:
+        slice_data[f"t = {t}"] = european_call_price(S_values, t, K=K, r=r, sigma=sigma, T=T)
+
+    plt.figure(figsize=(8, 5))
+    for label, prices in slice_data.items():
+        plt.plot(S_values, prices, label=label)
+    plt.xlabel("Stock price S")
+    plt.ylabel("Option price V(t, S)")
+    plt.title("Analytic Black-Scholes European Call Price")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(output_dir / "analytic_price_slices.png", dpi=200)
+    plt.close()
+
+    S_grid = np.linspace(1.0, S_max, 100)
+    t_grid = np.linspace(0.0, T, 100)
+    SS, TT = np.meshgrid(S_grid, t_grid)
+
+    VV = european_call_price(SS, TT, K=K, r=r, sigma=sigma, T=T)
+
+    fig = plt.figure(figsize=(9, 6))
+    ax = fig.add_subplot(111, projection="3d")
+    ax.plot_surface(SS, TT, VV, linewidth=0, antialiased=True)
+    ax.set_xlabel("Stock price S")
+    ax.set_ylabel("Time t")
+    ax.set_zlabel("Option price V(t, S)")
+    ax.set_title("Analytic Black-Scholes European Call Price")
+    plt.tight_layout()
+    plt.savefig(output_dir / "analytic_price_surface.png", dpi=200)
+    plt.close()
+
+    print("Generated figures:")
+    print("- figures/analytic_price_slices.png")
+    print("- figures/analytic_price_surface.png")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -67,10 +106,24 @@ def main():
         choices=MODELS.keys(),
         default="gated",
     )
+    parser.add_argument(
+        "--analytic-only",
+        action="store_true",
+    )
     args = parser.parse_args()
 
     output_dir = Path("figures")
     output_dir.mkdir(exist_ok=True)
+
+    K = 40.0
+    r = 0.05
+    sigma = 0.2
+    T = 1.0
+    S_max = 160.0
+
+    if args.analytic_only:
+        plot_analytic_only(output_dir, K, r, sigma, T, S_max)
+        return
 
     prefix = "gated_pinn" if args.model == "gated" else "pinn"
     model_cls = MODELS[args.model]
@@ -79,35 +132,16 @@ def main():
     model_path = Path(f"{prefix}_model.pt")
     if not model_path.exists():
         raise FileNotFoundError(
-            f"Could not find {model_path}. Run `python train_pinn.py --model {args.model}` first."
+            f"Could not find {model_path}. Run `python run_training.py --model {args.model}` first."
         )
-
-    K = 40.0
-    r = 0.05
-    sigma = 0.2
-    T = 1.0
-    S_max = 160.0
 
     model = model_cls(hidden_dim=32, hidden_layers=2, T=T, S_max=S_max)
     model.load_state_dict(torch.load(model_path, map_location="cpu"))
     model.eval()
 
-    S_grid = np.linspace(1.0, S_max, 100)
-    t_grid = np.linspace(0.0, T, 100)
-    SS, TT = np.meshgrid(S_grid, t_grid)
-
-    V_true = european_call_price(SS, TT, K=K, r=r, sigma=sigma, T=T)
-
-    t_tensor = torch.tensor(TT.reshape(-1, 1), dtype=torch.float32)
-    S_tensor = torch.tensor(SS.reshape(-1, 1), dtype=torch.float32)
-
-    with torch.no_grad():
-        V_pred = model(t_tensor, S_tensor).numpy().reshape(SS.shape)
-
-    error = V_pred - V_true
-
-    mse = np.mean((V_pred - V_true) ** 2)
-    mae = np.mean(np.abs(V_pred - V_true))
+    mse, mae, V_pred, V_true, SS, TT = evaluate_vs_analytic(
+        model, K=K, r=r, sigma=sigma, T=T, S_max=S_max,
+    )
 
     print(f"{model_name} vs analytic Black-Scholes benchmark:")
     print(f"MSE: {mse:.6f}")
@@ -117,25 +151,19 @@ def main():
     slices_plot = output_dir / f"{prefix}_vs_analytic_slices.png"
 
     plot_error_surface(
-        SS,
-        TT,
-        error,
+        SS, TT, V_pred - V_true,
         f"{model_name} prediction error",
         error_plot,
     )
 
+    S_grid = np.linspace(1.0, S_max, 100)
     slice_times = [0.0, 0.5, 1.0]
     true_slices = {}
     pred_slices = {}
 
     for t in slice_times:
         true_slices[f"t = {t}"] = european_call_price(
-            S_grid,
-            t,
-            K=K,
-            r=r,
-            sigma=sigma,
-            T=T,
+            S_grid, t, K=K, r=r, sigma=sigma, T=T,
         )
 
         t_slice = torch.full((len(S_grid), 1), t, dtype=torch.float32)
@@ -145,11 +173,7 @@ def main():
             pred_slices[f"t = {t}"] = model(t_slice, S_slice).numpy().reshape(-1)
 
     plot_price_slices(
-        S_grid,
-        true_slices,
-        pred_slices,
-        model_name,
-        slices_plot,
+        S_grid, true_slices, pred_slices, model_name, slices_plot,
     )
 
     print("Saved:")
