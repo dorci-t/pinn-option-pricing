@@ -37,4 +37,8 @@ echo "=== Real data demo ==="
 CONFIG=configs/real_data.toml python real_data_demo.py
 
 echo ""
+echo "=== Generate notebooks ==="
+bash generate_notebooks.sh
+
+echo ""
 echo "Done."

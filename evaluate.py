@@ -1,8 +1,9 @@
-"""
-Evaluate a trained PINN against the analytic Black-Scholes benchmark,
-or generate standalone analytic benchmark plots (set analytic_only = true in config).
-"""
+# %% [markdown]
+# # Evaluate PINN against the analytic Black-Scholes benchmark
+#
+# Set `analytic_only = true` in the config to generate standalone analytic plots.
 
+# %%
 import os
 from pathlib import Path
 
@@ -18,8 +19,21 @@ from src.train import evaluate_vs_analytic
 CONFIG_PATH = os.environ.get("CONFIG", "configs/gated.toml")
 config = load_config(CONFIG_PATH)
 
+# %%
+output_dir = Path("figures")
+output_dir.mkdir(exist_ok=True)
 
-def plot_analytic_only(output_dir, K, r, sigma, T, S_max):
+K = config["K"]
+r = config["r"]
+sigma = config["sigma"]
+T = config["T"]
+S_max = config["S_max"]
+
+# %% [markdown]
+# ## Analytic benchmark plots
+
+# %%
+if config.get("analytic_only", False):
     S_values = np.linspace(1.0, S_max, 300)
 
     slice_data = {}
@@ -49,21 +63,11 @@ def plot_analytic_only(output_dir, K, r, sigma, T, S_max):
     print("- figures/analytic_price_slices.png")
     print("- figures/analytic_price_surface.png")
 
+# %% [markdown]
+# ## Load trained model and evaluate
 
-def main():
-    output_dir = Path("figures")
-    output_dir.mkdir(exist_ok=True)
-
-    K = config["K"]
-    r = config["r"]
-    sigma = config["sigma"]
-    T = config["T"]
-    S_max = config["S_max"]
-
-    if config.get("analytic_only", False):
-        plot_analytic_only(output_dir, K, r, sigma, T, S_max)
-        return
-
+# %%
+if not config.get("analytic_only", False):
     prefix = "gated_pinn" if config["model"] == "gated" else "pinn"
     model_cls = MODELS[config["model"]]
     model_name = model_cls.__name__
@@ -91,8 +95,12 @@ def main():
     print(f"MSE: {mse:.6f}")
     print(f"MAE: {mae:.6f}")
 
+# %% [markdown]
+# ## Error surface
+
+# %%
+if not config.get("analytic_only", False):
     error_plot = output_dir / f"{prefix}_error_surface.png"
-    slices_plot = output_dir / f"{prefix}_vs_analytic_slices.png"
 
     plot_surface(
         SS, TT, V_pred - V_true,
@@ -100,6 +108,13 @@ def main():
         "Prediction error",
         error_plot,
     )
+
+# %% [markdown]
+# ## Comparison slices
+
+# %%
+if not config.get("analytic_only", False):
+    slices_plot = output_dir / f"{prefix}_vs_analytic_slices.png"
 
     S_grid = np.linspace(1.0, S_max, 100)
     slice_times = [0.0, 0.5, 1.0]
@@ -124,7 +139,3 @@ def main():
     print("Saved:")
     print(f"- {error_plot}")
     print(f"- {slices_plot}")
-
-
-if __name__ == "__main__":
-    main()

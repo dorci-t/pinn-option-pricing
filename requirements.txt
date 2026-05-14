@@ -6,3 +6,4 @@ tqdm
 jupyter
 pandas
 yfinance
+jupytext
