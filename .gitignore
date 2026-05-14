@@ -6,3 +6,5 @@ __pycache__/
 report/
 *.pt
 data/
+checkpoints/
+notebooks/
